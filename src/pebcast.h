@@ -10,10 +10,14 @@ int pebcast_strtoi(char* c);
 typedef void(*PebcastMessageReceivedHandler)(char* msg);
 typedef void(*PebcastMessageRequestFailedHandler)(char* msg);
 typedef void(*PebcastPartialMessageReceivedHandler)(int thisPart, int totalParts, int key, char* msg);
+typedef void(*PebcastPartialMessagePartStartHandler)(int thisPart, int totalParts);
+typedef void(*PebcastPartialMessagePartCompleteHandler)(int thisPart, int totalParts);
 
 typedef struct {
         PebcastMessageRequestFailedHandler onFailure;
 		PebcastPartialMessageReceivedHandler onPartialMessage;
+	PebcastPartialMessagePartStartHandler onPartialMessagePartStart;
+	PebcastPartialMessagePartCompleteHandler onPartialMessagePartEnd;
 	
 } PebcastCallbacks;
 

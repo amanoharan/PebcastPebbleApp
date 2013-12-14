@@ -74,16 +74,24 @@ void http_success(int32_t request_id, int http_status, DictionaryIterator* recei
   }
 //    call_count++;
 	Tuple *tuple = dict_read_first(received);
+	bool startNotified = false;
+	
 	while (tuple) {
 		if(tuple->key > 0 && tuple->key < 100) {
 			strncpy(msgThisPart, tuple->value->cstring, 2);
 			strncpy(msgTotalPartsCount, tuple->value->cstring+2,2);
 			thisPartNum = pebcast_strtoi(msgThisPart);
 			totalPartsCountNum = pebcast_strtoi(msgTotalPartsCount);
+			if(!startNotified) {
+				startNotified = true;
+				pebcast_callbacks.onPartialMessagePartStart(thisPartNum, totalPartsCountNum);
+			}
+				
 			pebcast_callbacks.onPartialMessage(thisPartNum, totalPartsCountNum,tuple->key, tuple->value->cstring+4);
 		}
 		tuple = dict_read_next(received);
 	}
+	pebcast_callbacks.onPartialMessagePartEnd(thisPartNum, totalPartsCountNum);
 	
     if(thisPartNum < totalPartsCountNum && thisPartNum > 0)
 	  recursivePollPebCast(thisPartNum+1);

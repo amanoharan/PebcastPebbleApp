@@ -19,6 +19,8 @@ typedef struct {
 void roulette_failure(char* msg);
 void roulette_partial_message(int thisPart, int totalParts, int key, char* msg); 
 void clearMessageDigests(PebcastRouletteMessageDigest* mdArray, int index);
+void roulette_partial_message_part_end(int thisPart, int totalParts);
+void roulette_partial_message_part_start(int thisPart, int totalParts);
 
 static char user_message[600];
 static char cast_message[1000];
@@ -42,7 +44,9 @@ static int elapsedMinsWithoutGettingValidServerResponse = 0;
 void pebcast_roulette_init(PebcastRouletteDisplayType dispType) {	
 	pebcast_register_callbacks((PebcastCallbacks) {
     	.onFailure = roulette_failure,
-		.onPartialMessage = roulette_partial_message 
+		.onPartialMessage = roulette_partial_message,
+		.onPartialMessagePartStart = roulette_partial_message_part_start,
+		.onPartialMessagePartEnd = roulette_partial_message_part_end
     }, NULL);
 	displayType = dispType;
 	memset(user_message,0, 600);
@@ -409,17 +413,29 @@ void processMessage() {
 	mergeToMessageDigestsLocalAndSort();
 }
 
+void roulette_partial_message_part_end(int thisPart, int totalParts) {
+	if(thisPart == totalParts) {
+		processMessage();
+		nextMessagePointer = 0;
+		locked = false;
+		if(!messagesRetrievedForFirstTime) {
+	   		messagesRetrievedForFirstTime = true;
+			roulette_callbacks.onInitComplete();
+	    }
+	}
+}
 
-
-void roulette_partial_message(int thisPart, int totalParts, int key, char* msg) {
-	if(thisPart < totalParts)
-		locked = true;
-	pcr_failureCount = 0;
-	
+void roulette_partial_message_part_start(int thisPart, int totalParts) {
 	if(thisPart == 1) {
 		memset(user_message,0, 600);
 		memset(cast_message,0, 1000);
 	}
+	if(thisPart < totalParts)
+		locked = true;
+	pcr_failureCount = 0;
+}
+
+void roulette_partial_message(int thisPart, int totalParts, int key, char* msg) {
 	
 	if(key == 1) { // user message aka mails
 		if( strlen(user_message) + strlen(msg) < 600)
@@ -435,21 +451,13 @@ void roulette_partial_message(int thisPart, int totalParts, int key, char* msg) 
 		if( strlen(cast_message) + strlen(msg) < 1000)
 		   strcat(cast_message, msg);
 		else {
-			int available = 600 - (strlen(cast_message) + strlen(msg) +1);
+			int available = 1000 - (strlen(cast_message) + strlen(msg) +1);
 			if(available > 0)
 				strncat(cast_message, msg, available);
 			notify_failure_message("Message too big!");
 		}
 	}
-	if(thisPart == totalParts) {
-		processMessage();
-		nextMessagePointer = 0;
-		locked = false;
-		if(!messagesRetrievedForFirstTime) {
-	   		messagesRetrievedForFirstTime = true;
-			roulette_callbacks.onInitComplete();
-	    }
-	}
+
 
 
 
